@@ -1,18 +1,26 @@
 from objects.ProductInfo import ProductInfo
 import win32com.client
+import params
+import datetime
+from objects.MessageBody import MessageBody
 
 def get_Mercado_number_from_text(text: str) -> int:
-    """Funcion que devuelve el mercado de un texto"""
+    # Split the text into lines. If line starts with "Mercado:", return the number after ":"
     lines = text.splitlines()
     for line in lines:
         if line.startswith('Mercado:'):
-            return int(line.split(':')[1])
-        
+            try:
+                return int(line.split(':')[1].strip())
+            except (ValueError, IndexError, Exception):
+                return -1
+    return -1
+            
 def get_product_infos_from_text(text: str) -> list['ProductInfo']:
-    """Funcion que devuelve una lista de objetos ProductInfo de un texto"""
+    #Spit the text in lines. If line start number return a ProductInfo
     lines = text.splitlines()
 
     product_infos = []
+    
     for line in lines:
         try:
             reference, state= line.split(':')
@@ -29,9 +37,7 @@ def get_product_infos_from_text(text: str) -> list['ProductInfo']:
 
 
 
-
-
-def get_text_from_email():
+def get_text_from_email()->list[str]:
 #Get the conection
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     inbox = outlook.GetDefaultFolder(6)  # 6 for inbox
@@ -41,17 +47,31 @@ def get_text_from_email():
 
     messages_count= len(unread_messages)
 
+    list = []
+
     if messages_count>0:
         for message in unread_messages:
-                if message.SenderEmailAddress == params.SENDER:
-                    print("Subject:", message.Subject)
-                    print("Sender:", message.SenderName)
-                    print("Received Time:", message.ReceivedTime)
-                    print("senderMail:", message.SenderEmailAddress)
-
-                    print("-----------------------------------")
-            #        message.UnRead =False
+            if message.SenderEmailAddress == params.SENDER:
+                print("Subject:", message.Subject)
+                print("Sender:", message.SenderName)
+                print("Received Time:", message.ReceivedTime)
+                print("senderMail:", message.SenderEmailAddress)
+                print("-----------------------------------")
+                list.append(message.body)
     else:
         print("no hay mensajes pendientes ")
+    
+    return list
 
+#crea una funcion que pase un objeto MessageBody a un archivo .txt en la carpeta especificada  
+def create_file_from_MessageBody(messageBody: MessageBody, destination_folder: str):
+    #get the date and pass it to text
+    
+    now = datetime.datetime.now()
+    date_text = now.strftime("%Y-%m-%d_%H%M%S")
+    filename = f"mail_{date_text}.txt"
 
+    #create the file
+    with open(f"{destination_folder}/{filename}", "w") as file:
+        file.write(messageBody.__str__())
+    

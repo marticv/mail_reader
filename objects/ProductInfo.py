@@ -7,4 +7,4 @@ class ProductInfo:
 
     #añade una funcion tostring
     def __str__(self):
-        return f"reference: {self.reference}, state: {self.state}, errorname: {self.errorname}"
+        return f"{self.reference} | {self.state} | {self.errorname}"
