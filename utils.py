@@ -3,6 +3,8 @@ import win32com.client
 import params
 import datetime
 from objects.MessageBody import MessageBody
+import imaplib
+from exchangelib import Credentials, Account, DELEGATE
 
 def get_Mercado_number_from_text(text: str) -> int:
     """
@@ -71,26 +73,21 @@ def get_text_from_email()->list[str]:
 #Get the conection
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     inbox = outlook.GetDefaultFolder(6)  # 6 for inbox
-
-    messages = inbox.Items
+    messages = inbox.Items #Get the items
     unread_messages = messages.Restrict("[Unread]=True")  # getting only unread messages
 
     messages_count= len(unread_messages)
-
     list = []
 
     if messages_count>0:
         for message in unread_messages:
-            emails_json = []
-
             if message.SenderEmailAddress == params.SENDER:
-                print("Subject:", message.Subject)
-                print("Sender:", message.SenderName)
-                print("Received Time:", message.ReceivedTime)
-                print(message.body)
-                print("-----------------------------------")
-                list.append(str(message.body))
-
+                #if message.Subject == params.TOPIC:    # Only when the subject is the one we need
+                    print("Asunto:", message.Subject)
+                    print("De:", message.SenderName)
+                    print("Hora de recepción:", message.ReceivedTime)
+                    print("-----------------------------------")
+                    list.append(str(message.body))
     else:
         print("no hay mensajes pendientes ")
     
@@ -99,14 +96,13 @@ def get_text_from_email()->list[str]:
 def clean_emprty_lines_from_text(text: str) -> str:
     return '\n'.join([line for line in text.splitlines() if line.strip()])
 
-#crea una funcion que pase un objeto MessageBody a un archivo .txt en la carpeta especificada  
+
 def create_file_from_MessageBody(messageBody: MessageBody, destination_folder: str):
     #get the date and pass it to text
-    
     now = datetime.datetime.now()
     date_text = now.strftime("%Y-%m-%d_%H%M%S")
-    filename = f"mail_{date_text}.txt"
+    filename = f"mail_{date_text}.csv"
 
-    #create the file
+    #create the file content
     with open(f"{destination_folder}/{filename}", "w") as file:
         file.write(messageBody.__str__())

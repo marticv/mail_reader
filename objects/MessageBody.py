@@ -9,6 +9,6 @@ class MessageBody:
     def __str__(self):
         text:str = ""
         for product_info in self.product_infos:
-            text += str(self.mercado) + " | " + product_info.__str__()+"\n"
+            text += str(self.mercado) + "," + product_info.__str__()+"\n"
 
         return text
