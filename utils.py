@@ -4,6 +4,7 @@ from objects.Email import Email
 import win32com.client
 import params
 import datetime
+import re
 
 import imaplib
 from exchangelib import Credentials, Account, DELEGATE
@@ -305,8 +306,63 @@ def obtener_cuerpo_correo(email_message: 'email.message.Message') -> str:
         cuerpo = email_message.get_payload(decode=True).decode(email_message.get_content_charset(), 'ignore')
     return cuerpo
 
-# Utiliza la función para obtener los correos electrónicos no leídos de Hotmail
-usuario = params.testUser
-contraseña = params.testPass
-correos_no_leidos = obtener_correos_no_leidos(usuario, contraseña)
-#print(correos_no_leidos)
+def obtener_lista_mails(usuario: str, contraseña: str) -> list[Email]:
+    """
+    Función que conecta a un servidor IMAP, busca correos electrónicos no leídos,
+    obtiene el cuerpo de cada correo y los devuelve en una lista.
+
+    Args:
+        usuario (str): Nombre de usuario para el login.
+        contraseña (str): Contraseña para el login.
+
+    Returns:
+        List[str]: Lista de cuerpos de los correos electrónicos no leídos.
+    """
+    # Configuración de conexión IMAP para Hotmail
+    imap_servidor = 'imap-mail.outlook.com'
+    puerto = 993
+    
+    # Conexión al servidor IMAP
+    conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
+    
+    try:
+        # Iniciar sesión
+        conexion.login(usuario, contraseña)
+        
+        # Seleccionar la bandeja de entrada
+        conexion.select('inbox')
+        
+        # Buscar todos los correos electrónicos no leídos
+        resultado, data = conexion.search(None, 'UNSEEN')
+        
+        correos_no_leidos = []
+        
+        # Recorrer los identificadores de los correos electrónicos no leídos
+        for num in data[0].split():
+            # Obtener el correo electrónico
+            resultado, mensaje = conexion.fetch(num, '(RFC822)')
+            raw_email = mensaje[0][1]
+            email_message = email.message_from_bytes(raw_email)
+
+            #obtenemos datos
+            asunto = email_message['Subject']
+            remitente = email_message['From']
+
+            #cadena = remitente
+            remitente = re.search(r'[\w\.-]+@[\w\.-]+', remitente).group()
+                        
+            # Obtener el cuerpo del correo electrónico
+            cuerpo_correo = obtener_cuerpo_correo(email_message)
+            testMail = Email(remitente, asunto, cuerpo_correo)
+            correos_no_leidos.append(testMail)
+            
+            # Marcar el correo como no leído nuevamente
+            conexion.store(num, '-FLAGS', '\\Seen')
+            
+    finally:
+        # Cerrar la conexión
+        conexion.close()
+        conexion.logout()
+        
+    return correos_no_leidos
+
