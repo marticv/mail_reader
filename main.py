@@ -30,3 +30,5 @@ for email in emailList:
         body = MessageBody(mercado_num, list)
         utils.create_file_from_MessageBody(body, params.DESTINATION_FOLDER)
         time.sleep(1) #wait 1 second to avoid rewriting the file
+
+

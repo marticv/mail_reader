@@ -1,8 +1,10 @@
 from objects.ProductInfo import ProductInfo
+from objects.MessageBody import MessageBody
+from objects.Email import Email
 import win32com.client
 import params
 import datetime
-from objects.MessageBody import MessageBody
+
 import imaplib
 from exchangelib import Credentials, Account, DELEGATE
 
@@ -106,3 +108,205 @@ def create_file_from_MessageBody(messageBody: MessageBody, destination_folder: s
     #create the file content
     with open(f"{destination_folder}/{filename}", "w") as file:
         file.write(messageBody.__str__())
+
+
+
+import imaplib
+import email
+from email.header import decode_header
+
+def leer_correos_hotmail(usuario, contraseña):
+    # Configuración de conexión IMAP para Hotmail
+    imap_servidor = 'outlook.office365.com'
+    puerto = 993
+    
+    # Conexión al servidor IMAP
+    conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
+    
+    try:
+        # Iniciar sesión
+        conexion.login(usuario, contraseña)
+        
+        # Seleccionar la bandeja de entrada
+        conexion.select('inbox')
+        
+        # Buscar todos los correos electrónicos en la bandeja de entrada
+        resultado, data = conexion.search(None, 'UNSEEN')
+        
+        # Recorrer los identificadores de los correos electrónicos
+        for num in data[0].split():
+            # Obtener el correo electrónico
+            resultado, mensaje = conexion.fetch(num, '(RFC822)')
+            raw_email = mensaje[0][1]
+            email_message = email.message_from_bytes(raw_email)
+            
+            # Obtener los encabezados del correo electrónico
+            remitente = email_message['From']
+            asunto = email_message['Subject']
+            
+            # Decodificar el asunto si es necesario
+            if isinstance(asunto, bytes):
+                asunto = decode_header(asunto)[0][0].decode()
+            
+            print('De:', remitente)
+            print('Asunto:', asunto)
+            
+            # Si quieres ver el cuerpo del correo, puedes descomentar las siguientes líneas
+            cuerpo = obtener_cuerpo_correo(email_message)
+            print('Cuerpo:', cuerpo)
+            
+    finally:
+        # Cerrar la conexión
+        conexion.close()
+        conexion.logout()
+
+"""
+# Función auxiliar para obtener el cuerpo del correo electrónico
+def obtener_cuerpo_correo(email_message):
+    cuerpo = ''
+    if email_message.is_multipart():
+        for part in email_message.walk():
+            if part.get_content_type() == "text/plain":
+                cuerpo += part.get_payload(decode=True).decode()
+    else:
+        cuerpo = email_message.get_payload(decode=True).decode()
+    return cuerpo
+"""
+
+def leer_correos_no_leidos_outlook(usuario, contraseña):
+    # Configuración de conexión IMAP para Outlook
+    imap_servidor = 'outlook.office365.com'
+    puerto = 993
+    
+    # Conexión al servidor IMAP
+    conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
+    
+    try:
+        # Iniciar sesión
+        conexion.login(usuario, contraseña)
+        
+        # Seleccionar la bandeja de entrada
+        conexion.select('inbox')
+        
+        # Buscar todos los correos electrónicos no leídos
+        resultado, data = conexion.search(None, 'UNSEEN')
+        
+        # Recorrer los identificadores de los correos electrónicos no leídos
+        for num in data[0].split():
+            # Obtener el correo electrónico
+            resultado, mensaje = conexion.fetch(num, '(RFC822)')
+            raw_email = mensaje[0][1]
+            email_message = email.message_from_bytes(raw_email)
+            
+            # Obtener los encabezados del correo electrónico
+            remitente = email_message['From']
+            asunto = email_message['Subject']
+            
+            # Decodificar el asunto si es necesario
+            if isinstance(asunto, bytes):
+                asunto = decode_header(asunto)[0][0].decode()
+            
+            print('De:', remitente)
+            print('Asunto:', asunto)
+            
+            # Si quieres ver el cuerpo del correo, puedes descomentar las siguientes líneas
+            cuerpo = obtener_cuerpo_correo(email_message)
+            print('Cuerpo:', cuerpo)
+            
+    finally:
+        # Cerrar la conexión
+        conexion.close()
+        conexion.logout()
+
+def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
+    """
+    Función que conecta a un servidor IMAP, busca correos electrónicos no leídos,
+    obtiene el cuerpo de cada correo y los devuelve en una lista.
+
+    Args:
+        usuario (str): Nombre de usuario para el login.
+        contraseña (str): Contraseña para el login.
+
+    Returns:
+        List[str]: Lista de cuerpos de los correos electrónicos no leídos.
+    """
+    # Configuración de conexión IMAP para Hotmail
+    imap_servidor = 'imap-mail.outlook.com'
+    puerto = 993
+    
+    # Conexión al servidor IMAP
+    conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
+    
+    try:
+        # Iniciar sesión
+        conexion.login(usuario, contraseña)
+        
+        # Seleccionar la bandeja de entrada
+        conexion.select('inbox')
+        
+        # Buscar todos los correos electrónicos no leídos
+        resultado, data = conexion.search(None, 'UNSEEN')
+        
+        correos_no_leidos = []
+        
+        # Recorrer los identificadores de los correos electrónicos no leídos
+        for num in data[0].split():
+            # Obtener el correo electrónico
+            resultado, mensaje = conexion.fetch(num, '(RFC822)')
+            raw_email = mensaje[0][1]
+            email_message = email.message_from_bytes(raw_email)
+
+            #obtenemos datos
+            asunto = email_message['Subject']
+            remitente = email_message['From']
+            
+            # Imprimir el asunto y el remitente
+            #print(f'Asunto: {asunto}')
+            #print(f'Remitente: {remitente}')
+
+            
+            # Obtener el cuerpo del correo electrónico
+            cuerpo_correo = obtener_cuerpo_correo(email_message)
+            testMail = Email(remitente, asunto, cuerpo_correo)
+            print(testMail)
+            print("-----------------------------------")
+            correos_no_leidos.append(cuerpo_correo)
+            
+            # Marcar el correo como no leído nuevamente
+            conexion.store(num, '-FLAGS', '\\Seen')
+            
+    finally:
+        # Cerrar la conexión
+        conexion.close()
+        conexion.logout()
+        
+    return correos_no_leidos
+
+# Función auxiliar para obtener el cuerpo del correo electrónico
+
+
+def obtener_cuerpo_correo(email_message: 'email.message.Message') -> str:
+    """
+    Obtiene el cuerpo de un correo electrónico.
+
+    Args:
+        email_message (email.message.Message): El mensaje del correo electrónico.
+
+    Returns:
+        str: El cuerpo del correo electrónico.
+    """
+    cuerpo = ''
+    if email_message.is_multipart():
+        for part in email_message.walk():
+            content_type = part.get_content_type()
+            if content_type == "text/plain":
+                cuerpo += part.get_payload(decode=True).decode(part.get_content_charset(), 'ignore')
+    else:
+        cuerpo = email_message.get_payload(decode=True).decode(email_message.get_content_charset(), 'ignore')
+    return cuerpo
+
+# Utiliza la función para obtener los correos electrónicos no leídos de Hotmail
+usuario = params.testUser
+contraseña = params.testPass
+correos_no_leidos = obtener_correos_no_leidos(usuario, contraseña)
+#print(correos_no_leidos)
