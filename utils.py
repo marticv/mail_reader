@@ -5,7 +5,6 @@ import win32com.client
 import params
 import datetime
 import re
-
 import imaplib
 from exchangelib import Credentials, Account, DELEGATE
 
@@ -125,13 +124,9 @@ def leer_correos_hotmail(usuario, contraseña):
     conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
     
     try:
-        # Iniciar sesión
+        # Iniciar sesión y seleccionar la bandeja de entrada, despues seleccionar los correos no leidos
         conexion.login(usuario, contraseña)
-        
-        # Seleccionar la bandeja de entrada
         conexion.select('inbox')
-        
-        # Buscar todos los correos electrónicos en la bandeja de entrada
         resultado, data = conexion.search(None, 'UNSEEN')
         
         # Recorrer los identificadores de los correos electrónicos
@@ -144,6 +139,7 @@ def leer_correos_hotmail(usuario, contraseña):
             # Obtener los encabezados del correo electrónico
             remitente = email_message['From']
             asunto = email_message['Subject']
+            fecha = email_message['Date']
             
             # Decodificar el asunto si es necesario
             if isinstance(asunto, bytes):
@@ -151,38 +147,26 @@ def leer_correos_hotmail(usuario, contraseña):
             
             print('De:', remitente)
             print('Asunto:', asunto)
-            
+            print('Fecha:', fecha)
             # Si quieres ver el cuerpo del correo, puedes descomentar las siguientes líneas
             cuerpo = obtener_cuerpo_correo(email_message)
             print('Cuerpo:', cuerpo)
             
     finally:
-        # Cerrar la conexión
+        # Cerrar la conexión IMAP, no inverte el orden. ya que si cerramos la sesion primero, el servidor podria no recivir la info de cerrar la sesion
+        # es una practica comun al trabajar con IMAP
         conexion.close()
         conexion.logout()
-
-"""
-# Función auxiliar para obtener el cuerpo del correo electrónico
-def obtener_cuerpo_correo(email_message):
-    cuerpo = ''
-    if email_message.is_multipart():
-        for part in email_message.walk():
-            if part.get_content_type() == "text/plain":
-                cuerpo += part.get_payload(decode=True).decode()
-    else:
-        cuerpo = email_message.get_payload(decode=True).decode()
-    return cuerpo
-"""
 
 def leer_correos_no_leidos_outlook(usuario, contraseña):
     # Configuración de conexión IMAP para Outlook
     imap_servidor = 'outlook.office365.com'
     puerto = 993
     
-    # Conexión al servidor IMAP
-    conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
-    
     try:
+        # Conexión al servidor IMAP
+        conexion = imaplib.IMAP4_SSL(imap_servidor, puerto)
+    
         # Iniciar sesión
         conexion.login(usuario, contraseña)
         
@@ -202,6 +186,7 @@ def leer_correos_no_leidos_outlook(usuario, contraseña):
             # Obtener los encabezados del correo electrónico
             remitente = email_message['From']
             asunto = email_message['Subject']
+            fecha = email_message['Date']
             
             # Decodificar el asunto si es necesario
             if isinstance(asunto, bytes):
@@ -213,11 +198,12 @@ def leer_correos_no_leidos_outlook(usuario, contraseña):
             # Si quieres ver el cuerpo del correo, puedes descomentar las siguientes líneas
             cuerpo = obtener_cuerpo_correo(email_message)
             print('Cuerpo:', cuerpo)
-            
-    finally:
-        # Cerrar la conexión
+            # Cerrar la conexión
         conexion.close()
         conexion.logout()
+
+    except Exception as e:
+        print(e)
 
 def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
     """
@@ -260,11 +246,6 @@ def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
             #obtenemos datos
             asunto = email_message['Subject']
             remitente = email_message['From']
-            
-            # Imprimir el asunto y el remitente
-            #print(f'Asunto: {asunto}')
-            #print(f'Remitente: {remitente}')
-
             
             # Obtener el cuerpo del correo electrónico
             cuerpo_correo = obtener_cuerpo_correo(email_message)
@@ -347,13 +328,14 @@ def obtener_lista_mails(usuario: str, contraseña: str) -> list[Email]:
             #obtenemos datos
             asunto = email_message['Subject']
             remitente = email_message['From']
+            fecha = email_message['Date']
 
             #cadena = remitente
             remitente = re.search(r'[\w\.-]+@[\w\.-]+', remitente).group()
                         
             # Obtener el cuerpo del correo electrónico
             cuerpo_correo = obtener_cuerpo_correo(email_message)
-            testMail = Email(remitente, asunto, cuerpo_correo)
+            testMail = Email(remitente, asunto, fecha, cuerpo_correo)
             correos_no_leidos.append(testMail)
             
             # Marcar el correo como no leído nuevamente
