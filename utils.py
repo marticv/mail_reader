@@ -6,7 +6,11 @@ import params
 import datetime
 import re
 import imaplib
-from exchangelib import Credentials, Account, DELEGATE
+import email
+from email.header import decode_header
+from datetime import datetime,timezone
+from email.message import Message
+
 
 def get_Mercado_number_from_text(text: str) -> int:
     """
@@ -95,6 +99,31 @@ def get_text_from_email()->list[str]:
     
     return list
 
+def get_email_list_from_Outlook()->list[Email]:
+#Get the conection
+    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+    inbox = outlook.GetDefaultFolder(6)  # 6 for inbox
+    messages = inbox.Items #Get the items
+    unread_messages = messages.Restrict("[Unread]=True")  # getting only unread messages
+
+    messages_count= len(unread_messages)
+    list = []
+
+    if messages_count>0:
+        for message in unread_messages:
+            if message.SenderEmailAddress == params.SENDER:
+                #if message.Subject == params.TOPIC:    # Only when the subject is the one we need
+                    print("Asunto:", message.Subject)
+                    print("De:", message.SenderName)
+                    print("Hora de recepción:", message.ReceivedTime)
+                    print("-----------------------------------")
+                    auxuliar_email = Email(message.SenderEmailAddress, message.Subject, message.ReceivedTime, message.body)
+                    list.append(auxuliar_email)
+    else:
+        print("no hay mensajes pendientes ")
+    
+    return list
+
 def clean_emprty_lines_from_text(text: str) -> str:
     return '\n'.join([line for line in text.splitlines() if line.strip()])
 
@@ -109,11 +138,6 @@ def create_file_from_MessageBody(messageBody: MessageBody, destination_folder: s
     with open(f"{destination_folder}/{filename}", "w") as file:
         file.write(messageBody.__str__())
 
-
-
-import imaplib
-import email
-from email.header import decode_header
 
 def leer_correos_hotmail(usuario, contraseña):
     # Configuración de conexión IMAP para Hotmail
@@ -207,7 +231,7 @@ def leer_correos_no_leidos_outlook(usuario, contraseña):
 
 def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
     """
-    Función que conecta a un servidor IMAP, busca correos electrónicos no leídos,
+    Función que conecta a un servidor IMAP para leer correos de hotmail, busca correos electrónicos no leídos,
     obtiene el cuerpo de cada correo y los devuelve en una lista.
 
     Args:
@@ -249,13 +273,16 @@ def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
             
             # Obtener el cuerpo del correo electrónico
             cuerpo_correo = obtener_cuerpo_correo(email_message)
-            testMail = Email(remitente, asunto, cuerpo_correo)
-            print(testMail)
-            print("-----------------------------------")
+            print("Asunto:", asunto)
+            print("Remitente:", remitente)
+            print("-------------------------------")
+            #testMail = Email(remitente, asunto, cuerpo_correo)
+            #print(testMail)
+            #print("-----------------------------------")
             correos_no_leidos.append(cuerpo_correo)
             
             # Marcar el correo como no leído nuevamente
-            conexion.store(num, '-FLAGS', '\\Seen')
+            #conexion.store(num, '-FLAGS', '\\Seen')
             
     finally:
         # Cerrar la conexión
@@ -267,25 +294,27 @@ def obtener_correos_no_leidos(usuario: str, contraseña: str) -> list[str]:
 # Función auxiliar para obtener el cuerpo del correo electrónico
 
 
-def obtener_cuerpo_correo(email_message: 'email.message.Message') -> str:
+
+
+def obtener_cuerpo_correo(email_message: Message) -> str:
     """
-    Obtiene el cuerpo de un correo electrónico.
+    Obtiene el cuer de un correo electrónico.
 
     Args:
-        email_message (email.message.Message): El mensaje del correo electrónico.
+        email_message (Message): El mensaje del correo electrónico.
 
     Returns:
-        str: El cuerpo del correo electrónico.
+        str: El cuer del correo electrónico.
     """
-    cuerpo = ''
+    cuer = ''
     if email_message.is_multipart():
         for part in email_message.walk():
             content_type = part.get_content_type()
             if content_type == "text/plain":
-                cuerpo += part.get_payload(decode=True).decode(part.get_content_charset(), 'ignore')
+                cuer += part.get_payload(decode=True).decode(part.get_content_charset(), 'ignore')
     else:
-        cuerpo = email_message.get_payload(decode=True).decode(email_message.get_content_charset(), 'ignore')
-    return cuerpo
+        cuer = email_message.get_payload(decode=True).decode(email_message.get_content_charset(), 'ignore')
+    return cuer
 
 def obtener_lista_mails(usuario: str, contraseña: str) -> list[Email]:
     """
@@ -348,3 +377,33 @@ def obtener_lista_mails(usuario: str, contraseña: str) -> list[Email]:
         
     return correos_no_leidos
 
+
+
+
+def get_last_proceced_date_from_file() -> str:
+    last_date_text = ''
+    try:
+        with open(params.LAST_DATE_ARCHIVE_ROUTE, "r") as file:
+            last_date_text = file.read()
+            print(last_date_text)
+    except Exception as e:
+        print(e)
+    return last_date_text
+
+def write_last_proceced_date(date: str) -> None:
+    try:
+        with open(params.LAST_DATE_ARCHIVE_ROUTE, "w") as file:
+            file.write(date)
+    except Exception as e:
+        print(e)
+
+def compare_dates(date1: str, date2: str) -> str:
+    format = "%Y-%m-%d %H:%M:%S.%f%z"
+
+    date1_to_datetime = datetime.strptime(date1, format).astimezone(timezone.utc)
+    date2_to_datetime = datetime.strptime(date2, format).astimezone(timezone.utc)
+
+    if date1_to_datetime > date2_to_datetime:
+        return date1
+    else:
+        return date2
